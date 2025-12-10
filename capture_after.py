@@ -12,7 +12,7 @@ import sys
 # 1. SERVER URL
 # You gave: https://h3vkhzth-4200.asse.devtunnels.ms/patient-info/1
 # We change 4200 -> 8000 and point to the API endpoint
-SERVER_URL = "https://h3vkhzth-8000.asse.devtunnels.ms/api/segment/"
+SERVER_URL = "https://h3vkhzth-8000.asse.devtunnels.ms/api/segment/after"
 
 # 2. MEDIA FOLDER SETUP
 # Automatically find the 'media' folder in the same directory as this script
