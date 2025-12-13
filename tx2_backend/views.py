@@ -1,9 +1,19 @@
-from django.http import JsonResponse
+from django.http import FileResponse, JsonResponse
 from django.views.decorators.csrf import csrf_exempt
+from django.conf import settings
 import json
 import subprocess
 import os
 import sys
+import cv2
+import numpy as np
+import pyrealsense2 as rs
+from datetime import datetime
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+MEDIA_DIR = os.path.join(BASE_DIR, "../media/meals")
+
+os.makedirs(MEDIA_DIR, exist_ok=True)
 
 # Global variable to store the weight
 current_live_weight = 0.0
@@ -118,6 +128,82 @@ def capture_api(request): #let this receive url then print the url received
         }, status=500)
 
     except Exception as e:
+        return JsonResponse({
+            "status": "error",
+            "message": str(e)
+        }, status=500)
+
+
+def capture_meal_rgb(width=848, height=480, fps=30):
+    """
+    Capture a single RGB frame from Intel RealSense.
+    Returns: numpy array (BGR image)
+    """
+    pipeline = rs.pipeline()
+    config = rs.config()
+
+    # Enable RGB stream only
+    config.enable_stream(
+        rs.stream.color,
+        width,
+        height,
+        rs.format.bgr8,
+        fps
+    )
+
+    try:
+        pipeline.start(config)
+
+        # Warm-up frames (critical for RealSense)
+        for _ in range(5):
+            pipeline.wait_for_frames()
+
+        frames = pipeline.wait_for_frames()
+        color_frame = frames.get_color_frame()
+
+        if not color_frame:
+            raise RuntimeError("Failed to capture RGB frame")
+
+        # Convert to numpy array (OpenCV BGR format)
+        color_image = np.asanyarray(color_frame.get_data())
+
+        return color_image
+
+    finally:
+        # Always release the camera
+        pipeline.stop()
+
+
+@csrf_exempt
+def capture_meal(request):
+    try:
+        # Ensure RealSense device exists
+        ctx = rs.context()
+        if len(ctx.devices) == 0:
+            return JsonResponse({
+                "status": "error",
+                "message": "No RealSense device detected"
+            }, status=500)
+
+        # Capture RGB image
+        rgb_image = capture_meal_rgb()
+
+        # Save as captured_meal.jpg (overwrite-safe timestamp)
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"captured_meal_{timestamp}.jpg"
+        file_path = os.path.join(MEDIA_DIR, filename)
+
+        cv2.imwrite(file_path, rgb_image)
+
+        # Return image to frontend
+        return FileResponse(
+            open(file_path, "rb"),
+            content_type="image/jpeg",
+            filename=filename
+        )
+
+    except Exception as e:
+        print("❌ capture_meal error:", repr(e))
         return JsonResponse({
             "status": "error",
             "message": str(e)

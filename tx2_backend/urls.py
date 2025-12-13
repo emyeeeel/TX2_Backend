@@ -17,10 +17,11 @@ Including another URLconf
 
 from django.contrib import admin
 from django.urls import path
-from .views import capture_api
+from .views import capture_api, capture_meal
 
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("api/capture/", capture_api),
+    path("api/capture/meal/", capture_meal),
 ]
 
